@@ -23,7 +23,8 @@ object TrendingTopicScala {
     tweets.map( texto => texto.replaceAll("#", " #") )         // Anotamos que hay que añadir un espacio en blanco antes de cada almohadilla (LAZY). Sería absurdo documentarlo asi.
                                                                // Al escribir comentariop diríamos:
                                                                // Añadimos un espacio en blanco antes de cada almohadilla
-          //.map( separarTokens )     // Esto da lugar a una colección(ficticia) con 3 arrays de Strings (3 listas de palabras)
+          //.map( separarTokens )     // Esto da lugar a una colección(ficticia) con 3 arrays de Strings (3 listas
+                                                               // de palabras)
                                       // ["En", "la", "playa", "con", "un", "mis", "amigos", "#SummerLove", "#OnFire", "#BestFriends", "#GoodVibes"]
                                       // ["Haciendo", "exámenes", "de", "mierda", "con", "mis", "amigos", "#CacaFriends", "#SummerHate", "que", "asco"]
                                       // ["De", "parranda", "con", "mis", "amigos", "#SummerLove", "#Parranda100%", "#BestFriends", "#GoodVibes"]

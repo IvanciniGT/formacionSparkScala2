@@ -10,3 +10,5 @@ lazy val root = (project in file("."))
 
 // Dependencias
 // Meteremos las dependencias de Spark
+// https://mvnrepository.com/artifact/org.scala-lang.modules/scala-parallel-collections
+libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
