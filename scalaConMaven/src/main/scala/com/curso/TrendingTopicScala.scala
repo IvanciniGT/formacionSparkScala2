@@ -8,6 +8,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 object TrendingTopicScala {
 
+  val CUANTOS_HASHTAGS_EN_TRENDING_TOPIC= 4;
 
   def main(args: Array[String]): Unit = {
     // Me voy a crear una colección de datos... tweets
@@ -51,7 +52,14 @@ object TrendingTopicScala {
 
       /// Queremos eliminar aquellos hashtags que contengan una palabra prohibida
       .filter( hashtag => noContienePalabrasProhibidas(hashtag, numeroDeHashtagsFiltrados, palabrasProhibidas) ) // Aquí usamos el valor del broadcast de palabras prohibidas
+      // CALCULAMOS AHORA LOS TRENDING TOPICS
+      .groupBy(hashtag => hashtag.toUpperCase())
+      .mapValues(lista => lista.size)
+      .sortBy{case (hashtag, count) => -1*count} // Ordenamos de mayor a menor
+      .take(CUANTOS_HASHTAGS_EN_TRENDING_TOPIC)
 
+      // Cómo lo veis? Esto es enrevesado, complicado... abstracto... lioso... necesito aprender un huevo de funciones map... ES COMPLEJO! MUY COMPLEJO!
+      // Pensar un algortimo en términos de MAP/REDUCE es algo MUY COMPLEJO! Es donde está el problema... no en el uso de Spark... que es muy sencillo.
       // Me quedo con los hashtags que NO contienen palabras prohibidas
       .foreach( println );
 

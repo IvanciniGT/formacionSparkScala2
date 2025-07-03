@@ -205,3 +205,194 @@ Teníamos también una lista de palabras prohibidas... que deberíamos usar? Un 
     Quien modifica esa variable? Mi programa.
     Quien lee esa variable? Los nodos trabajadores.
 
+----
+
+TABLA DE UNA BBDD
+        hashtag:
+        ----------
+        BestFriends
+        SummerLove
+        SummerHate
+        GoodVibes
+        OnFire
+        BestFriends
+        GoodVibes
+
+
+        ----
+
+        BestFriends     2
+        GoodVibes       2
+        SummerLove      1
+                                            ---- De estos pasamos.. solo los 3 primeros.
+                                            SummerHate      1
+                                            OnFire          1
+
+
+ SELECT hashtag, COUNT(*) AS contador from hashtags
+ GROUP BY hashtag ORDER BY contador DESC LIMIT 3
+
+Eso estaría guay... pero... nosotros (por ahora) no tenemos SQL...ni una BBDD ... lo 
+que tenemos es operaciones MAP/REDUCE
+
+---
+
+Un RDD es como llama SPARK a una lista paralelizable. El equilavente a una lista de Scala a la que hemos hecho un `.par`
+
+RDD = Resilient Distributed Dataset
+
+
+
+    hashtags          
+
+    "BestFriends"                               
+    "SummerLove"
+    "SummerHate"
+    "bestfriends"
+    "GoodVibes"
+    "OnFire"
+    "GoodVibes"
+
+
+    vvvvv
+    .groupBy(hashtag => hashtag.toUpperCase())
+    vvvvv
+    ("BESTFRIENDS", List("BestFriends", "bestfriends"))
+    ("SUMMERLOVE", List("SummerLove"))
+    ("SUMMERHATE", List("SummerHate"))
+    ("GOODVIBES", List("GoodVibes", "GoodVibes"))
+    ("ONFIRE", List("OnFire"))  
+
+     vvvv
+
+                    List("BestFriends", "BestFriends")  > Su tamaño: 2
+                    List("SummerLove")                  > Su tamaño: 1
+        .mapValues
+        
+     vvvv
+
+        ("BESTFRIENDS", 2)
+        ("SUMMERLOVE", 1)
+        ("SUMMERHATE", 1)
+        ("GOODVIBES", 2)
+        ("ONFIRE", 1)
+
+    vvvvv
+    Ordenarlo... por qué concepto?
+
+---
+
+Todo esto del Map/Reduce es muy complejo. El aprender todas las operaciones que existen, y cómo se usan, es algo que lleva tiempo.
+
+Ese problema lo tenemos nosotros... y lo tienen el resto de personas que usan Spark.
+
+Que se hizo en Spark. Tiraron todo esto a la basura! ... o mejor dicho lo escondieron en la trastienda.
+Y montaron una librería nueva... que funciona sobre ésta librería (spark-core).
+
+La librería spark-core es la BASE de Spark, y es la que nos permite trabajar con RDDs, y hacer operaciones de Map/Reduce.
+
+Lo que hicieron en Spark fue crear una nueva libreria llamada Spark-SQL, esa librería me permite trabajar con algo así como TABLAS (como si fueran tablas de una BBDD), y hacer operaciones sobre esas tablas, como si fueran consultas SQL.
+
+Internamente, Spark-SQL usa Spark-Core, y por lo tanto, las operaciones que se hacen sobre las tablas son operaciones de Map/Reduce.... pero yo no tengo que preocuparme de eso, porque Spark-SQL me abstrae de todo eso, y me permite trabajar con tablas y consultas SQL.
+
+Eso me dulcifica el problema... en exceso!
+
+La parte negativa: NO TODO lo puedo hacer con Spark-SQL. Solamente aquellos datos que pueda representar como tablas, y aquellas operaciones que pueda representar como consultas SQL.
+
+IMAGINAD los tweets... puedo representar la estructura interna de un tweet como una tabla?
+  - Texto
+  - Hashtag1
+  - Hasthag2
+  - Mención1
+  - Mención2
+El hacer eso ya sería un trabajon... fuera de SQL
+
+"Haciendo exámenes de mierda,con mis amigos de mierda #CacaFriends#SummerHate,que asco!!!!"
+         vvvvv
+
+    Texto: Haciendo exámenes de mierda,con mis amigos de mierda... que asco!!!!
+    Hashtag1 : CacaFriends
+    Hashtag2 : SummerHate
+    Hashtag3 : null
+
+    Mención1 : null
+    Mención2 : null
+
+SQL y las tablas de una BBDD están pensadas para trabajar con datos estructurados, y los tweets no son datos estructurados, son datos semiestructurados.
+
+Cuando tenga datos estructurados: Listado de clientes, listado de productos, listado de facturas... podré usar Spark-SQL.
+Cuando no tenga datos estructurados: Listado de tweets, listado de logs, listado de eventos... no podré usar Spark-SQL.
+
+Hay veces que parte del trabajo lo podré hacer con Spark-SQL, y parte del trabajo lo tendré que hacer con Spark-Core.
+
+El sacar la lista de hashtags que aparecían en los tweets, lo puedo hacer fácil con SQL?
+
+
+Haciendo exámenes de mierda,con mis amigos de mierda #CacaFriends#SummerHate,que asco!!!!
+    vvvv
+    ~~CacaFriends~~
+    SummerHate
+
+    Filtrando además por hashtags que no contengan palabras prohibidas... 
+Ahora...
+Teniendo ya ese listado:
+    SummerHate
+    CacaFriends
+    GoodVibes
+    GoodVibes
+    SummerLove
+    BestFriends
+     vvvv
+     Saca los trending topics, lo puedo hacer fácil con SQL?
+
+      SELECT hashtag, COUNT(*) AS contador from hashtags GROUP BY hashtag ORDER BY contador DESC LIMIT 3
+
+Preferimos escribir esa query o:
+
+      .groupBy(hashtag => hashtag.toUpperCase())
+      .mapValues(lista => lista.size)
+      .sortBy{case (hashtag, count) => -1*count} // Ordenamos de mayor a menor
+      .take(CUANTOS_HASHTAGS_EN_TRENDING_TOPIC)
+
+LA QUERY de todas! Entre otras cosas porque estamos muy acostumbrados a SQL, y porque es más fácil de leer y entender. SQL está además pensado para este tipo de cosas, y es más fácil de usar.
+
+
+        .sortBy{case (hashtag, count) => -1*count} 
+        ORDER BY contador DESC
+
+        .mapValues(lista => lista.size)
+        COUNT(*) AS contador
+
+
+Al trabajar con SparkSQL TODO CAMBIA... incluso la forma de abrir una conexión con el cluster de spark.
+
+La conexión que abrimos con Spark-SQL es diferente a la que abrimos con Spark-Core.
+En Spark Core tenemos por ejemplo la función parallelize, que nos permite crear un RDD a partir de una colección de Scala.
+Esa función no existe en la conexión que abre Spark-SQL.
+
+Lo que si podemos es pasar de la conexión de Spark-SQL a la de Spark-Core, y viceversa.
+
+Para pasar de una conexión de Spark-SQL a una de Spark-Core, usamos la función `sparkContext` de la conexión de Spark-SQL.
+
+---
+
+Un case class de scala es un objeto de transporte de datos, que nos permite definir una clase que solo alberga datos INMUTABLES... sin funciones asociadas, sin lógica de negocio, sin nada más que datos.
+
+Este concepto existe también en JAVA: Record
+
+---
+
+Nosotros estamos generando un dataframe.
+Ese dataframe lo estamos creando (mediante distintas técnicas) desde objetos de un tipo CUSTOM (una clase propia que hemos definido: Persona)
+
+En cualquiera de las opciones que hemos dado, al crear el dataframe, pasamos un segundo argumento: precisamente la clase que define el tipo de los objetos que estamos metiendo en el dataframe.
+
+Si leyeramos de un EXCEL, ese SCHEMA lo genera en automático, y no tenemos que definirlo nosotros.
+En nuestro caso, como estamos creando el dataframe desde una colección de objetos, debemos definirlo nosotros.
+
+Aunque lo puede generar el también en automático desde la estructura de la clase que le pasamos como segundo argumento.
+
+Cuando hacemos esto, spark trata de inferir en automático los datos que tenemos en la clase, y los tipos de datos que tiene cada uno de los campos de la clase.
+Y cómo hace eso?
+Mediante un concepto que en JAVA llamamos REFLECTION.
+Lo que hace SPARK es mirar todas las funciones de la clase cuyo nombre empieza por "get", y las convierte en campos del dataframe.
