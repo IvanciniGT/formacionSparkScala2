@@ -27,10 +27,10 @@ object SparkSQL {
     // Incluso puedo crear un dataframe yo mismo.. a manita. Que por ahora es lo que vamos a hacer!
 
     val datosPersonas = Array[Persona](
-      new Persona("Menchu",   30, "Madrid"),
-      new Persona("Federico", 25, "Barcelona"),
-      new Persona("Marcial",  35, "Sevilla"),
-      new Persona("Fernanda", 28, "Sevilla")
+      new Persona("Menchu",   30, "Madrid", "12345678A"),
+      new Persona("Federico", 25, "Barcelona", "23456789B"),
+      new Persona("Marcial",  35, "Sevilla", "34567890C"),
+      new Persona("Fernanda", 28, "Sevilla", "45678901D"),
     ) //.asJava
     // Pregunta... eso (datosPersonas) es un objeto de SparkSQL? NO .. es un ARRAY de SCALA
     //val df = conexion.createDataFrame(datosPersonas, classOf[Persona])
@@ -81,15 +81,23 @@ object SparkSQL {
     // En algunos casos puede ser más cómodo.. pocos.
     //dataframePersonas.groupBy( $"ciudad" ).count().show() // Agrupamos por ciudad y contamos cuántas personas hay en cada ciudad
     conexion.sql("SELECT ciudad, COUNT(*) as total FROM personas GROUP BY ciudad").show() // Agrupamos por ciudad y contamos cuántas personas hay en cada ciudad usando SQL
+
+    conexion.sql("SELECT nombre, dni, validarDNI(dni) as dniValido from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
+    // SQL viene coin una serie de funciones estandar: sum, avg, count, min, max, etc.
+    // Viene en SQL la función validarDNI? NO
+    // La vamos crear nosotros: UDF = User Defined Function
+    // Esto será una opción.
+    // La otra: transformar los datos de un dataframe a un RDD, y aplicar una función map sobre ese RDD.
     conexion.stop()
   }
 
 }
 
-class Persona (val nombre: String, val edad: Int, val ciudad: String) extends Serializable {
+class Persona (val nombre: String, val edad: Int, val ciudad: String, val dni:String) extends Serializable {
   def getNombre(): String = nombre
   def getEdad(): Int = edad
   def getCiudad(): String = ciudad
+  def getDNI(): String = dni
 }
 /*
 case class Persona ( nombre: String,  edad: Int,  ciudad: String){
