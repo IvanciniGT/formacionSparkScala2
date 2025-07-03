@@ -55,7 +55,7 @@ object CalcularPi {
     println(s"Estimación de π con $NUMERO_TOTAL_DE_DARDOS dardos: $PI_ESTIMADO_2")
 
     // Vamos a hacer sleep para ser capacer de acceder a la consola web y ver el proceso de ejecución
-     Thread.sleep(60*60*1000) // 1 hora de espera
+    // Thread.sleep(60*60*1000) // 1 hora de espera
     conexion.stop() // Cerramos la conexión al contexto de Spark. Es una buena práctica hacerlo siempre que terminemos de usarlo.
 
   }
