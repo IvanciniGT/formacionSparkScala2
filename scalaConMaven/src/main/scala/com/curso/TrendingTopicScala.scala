@@ -1,4 +1,6 @@
 package com.curso
+import org.apache.spark.{SparkConf, SparkContext}
+
 import scala.collection.parallel.CollectionConverters._
 
 
@@ -6,6 +8,7 @@ object TrendingTopicScala {
 
   def main(args: Array[String]): Unit = {
     // Me voy a crear una colección de datos... tweets
+
     val tweets = Array(
       "En la playa con un mis amigos #SummerLove#OnFire#BestFriends#GoodVibes",
       "Haciendo exámenes de mierda,con mis amigos de mierda #CacaFriends#SummerHate,que asco!!!!",
