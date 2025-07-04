@@ -203,3 +203,226 @@ En una empresa la cosa cambia...mucho!
 3º Copias de seguridad... que también se hacen redundantes
 
 Al final ese Tbs, que en casa me sale por 40€, en un entorno de producción se me puede ir a 1.000€ o más.
+
+
+{
+    "nombre": "María",
+    "apellidos": "García",
+    "edad": 43, 
+    "dni": "23000046T", 
+    "cp": "28006", 
+    "email": "maria@garcia.com"
+}
+
+
+Al crear programas en Spark, podemos crear programas:
+- Que se ejecuten en modo batch (los jueves a las 3am)
+- Que se ejecuten en modo streaming (procesando datos según van llegando.. for ever and ever)
+   - Spark hace algo cutre con este... realmente lo que hace son muchos programas batch que se ejecutan cada X segundos.
+   - Antiguamente había una librería en spark llamada Spark Streaming que hacía eso, pero ya no se usa.
+   - Esta totalmente obsoleto! Desde hace años.
+   - Hoy en día esa funcionalidad la absorbe Spark Structured Streaming, que es una API de Spark SQL.
+
+En algunos casos, leemos archivos de texto... los jueves a las 3am, y los procesamos.
+En otros casos, leemos datos de una cola de mensajes (como Kafka) y los procesamos según van llegando.
+
+---
+
+JOINS en BBDD.
+
+Las BBDD son unos seres extraordinarios. Son capaces de hacer operaciones muy complejas sobre datos de forma muy eficiente.
+
+> Pregunta:
+
+Cómo resuelve una BBDD un JOIN entre dos tablas? Cómo lo hace por dentro?
+- Las BBDD tienen distintas formas de hacer un JOIN entre dos tablas:
+   - Nested Loop Lookup
+   - Hash Join
+   - Sort Merge Join
+
+
+|   TABLA1                    |
+| id | nombre         | cp    |
+| 1  | Juan           | 19200 | 
+| 2  | Ana            | 28900 | 
+| 3  | Pedro          | 31890 | 
+
+
+|  TABLA2              |
+| cp    | provincia    |
+| 19200 | Madrid       | 
+| 28900 | Madrid       | 
+| 31890 | Barcelona    | 
+| 36890 | Cuenca       |
+
+| TABLA 1 x TABLA 2                             |
+| id | nombre | cp(t1)    | cp(t2) | provincia  |
+| 1  | Juan   | 19200     | 19200  | Madrid     |
+| 2  | Ana    | 28900     | 28900  | Madrid     |
+| 3  | Pedro  | 31890     | 31890  | Barcelona  |
+| -  |  -     |  -        | 36890  | Cuenca     |
+
+
+EN GENERAL, CUANDO TENGO UNA TABLA 2 MUY PEQUEÑA MUY PEQUEÑA ESA TABLA ENTRA SIN PROBLEMAS EN MEMORIA RAM... Y UN NESTED LOOP LOOKUP ES MUY EFICIENTE.
+
+EN CUANTO TABLA2 es más grandecita.. la tabla no entra en RAM... y no hay huevos a hacer un NESTED LOOP LOOKUP.... en ese caso, la BBDD opta por hacer un HASH JOIN o un SORT MERGE JOIN.
+
+El problema GORDO DE NARICES que que para que ese JOIN se pueda realizar, lo primero que hay que hacer es que las dos tablas estén ordenadas por el campo de unión (cp en este caso).
+
+> Pregunta: Qué tal se le da a un ORDENADOR ordenar datos? FATAL ! De lo peor que le puedo pedir.
+
+De hecho, las BBDD, expertas en JOINS, usan una estrategia muy particular:
+Tener una copia de los datos preordenados en el HDD... ocupando el doble de espacio en el HDD = INDICE
+
+Si una columna de una tabla me ocupa 10Mbs, el índice cuán puede llevar a ocupar? Se me puede ir a 20, 30, 40Mbs
+
+Gracias a esas copias de los datos ordenados, las BBDD pueden hacer JOINS de forma muy eficiente.
+
+En Spark tenemos INDICES? NO
+
+Spark NO ES UNA BBDD... así me hayan hecho el paripé para que pueda usar sintaxis SQL para transformar los datos. La librerías SparkSQL, lo único que hace al final es transformar las consultas SQL operaciones MAP/REDUCE.
+
+Aquí entra ese concepto que os comenté el otro día: Variantes ETLs
+
+ - E, T, L
+ - E, T, L, T
+ - T, E, T, L
+ - T, E, L
+ - T, E, L, T
+
+Una transformación de los datos puede ser enriquecerlos. Me interesa hacerlo en Spark? Depende... puede que si... puede que no.
+
+En Spark hay que tener mucho cuidado con los JOINS, porque no tenemos una BBDD, con sus índices... y toda su parafernalia, que me aseguran que esas operaciones se van a hacer de forma eficiente.
+
+Si tengo una tabla 2 (con la que hago el join) muy grande, el JOIN va a ser muy lento (extremadamente lento). SERIA UNA CAGADA desproporcionada en hacer esto con Spark.
+
+OJO A las funciones que veis disponibles.
+
+Una tabla 2 pequeña... básicamente hablamos de que entre en RAM con holgura.
+
+Necesitamos tener en cuenta otra cosa.
+La gracia de usar una herramienta como SPARK es poder paralelizar la carga de trabajo REPARTIENDOLA entre distintas máquinas físicas. BIEN!
+
+Sease una tabla 1 con 1M de datos... que quiero enriquecer con datos de una tabla 2 con 100.000 datos.
+
+Se pueden paralelizar los datos de la tabla 1? Claro... sin problema:
+     50 paquetes de 20.000 datos cada uno... que iré mandando a los nodos trabajadores.
+Se pueden paralelizar los datos de la tabla 2? NI DE BROMA !
+     Tengo a priori idea de qué datos le han llegado a cada nodo trabajador de la tabla 1.
+     ES DECIR... Tengo la tabla de CP(tabla 2).. y la de clientes (tabla 1).
+
+    Tengo 1M de clientes... que reparto en 50 paquetes de 20.000 clientes cada uno.
+    A cada nodo trabajador voy mandando paquetes de 20.000 clientes.
+    Conozco a priori los CP que se usan en esos 20.000 clientes? Ni idea.
+    Por ende, que datos de la tabla de CP voy a necesitar en ese nodo? TODOS !
+
+Los códigos postales los necesito TODOS en TODOS los nodos trabajadores.
+ (NOTA: Por cierto... que me interesaría hacer con la tabla de CP?  BROADCAST!  ) 
+
+
+Hay que entender bien el COMO funcionan los JOINS en Spark, porque si no, podemos hacer una cagada monumental.
+
+
+Si tengo que mandar 100.000.000 millones de datos a un nodo trabajador... solo en transporte de datos... cuánto me tarda la operación? LA VIDA!
+
+Otra cosa es que los datos YA estén prerepartidos en los nodos trabajadores. ESTO ES MUY HABITUAL
+
+---
+
+## Hadoop. 
+
+Una de las cosas que nos ofrece:
+- HDFS (Hadoop Distributed File System)
+- Implementación MAP / REDUCE (que ésta es la que nosotros cambiamos por Spark)
+
+Esto está pensado para correr sobre entornos POSIX. HDFS utiliza los comandos típicos de POSIX para interactuar con el sistema de ficheros.
+
+
+---
+
+# Qué era UNIX?
+
+Era un SO... que hacía la gente de AT&T (en sus lab. Bell) en los años 70.
+Lo dejaron de hacer a principios de los 2000.
+El tema es que por entonces los SO se licenciaba de forma distinta. Hoy en día tenemos EULAs(End User License Agreements) que nos dicen lo que podemos y no podemos hacer con el SO. Donde el fabricante ofrece una licencia de uso a un usuario. 
+Antiguamente AT&T licenciaba UNIX a empresas, y esas empresas (en su mayoría fabricantes de hardware) lo adaptaban a su hardware, y lo vendían como un SO para sus máquinas: Olivetti UNIX, Commodore UNIX, Atari UNIX, etc.
+
+Llego a haber más de 400 versiones de UNIX distintas, cada una adaptada a un hardware distinto.... y muchas empezaron a ser incompatibles entre sí.
+Para poner orden salieron 2 estándares (en paralelo): SUS(Single UNIX Specification) y POSIX (Portable Operating System Interface).
+
+# Hoy en día Un SO Unix 
+Es aquel que cumple con esos estándares.
+Hay muchas empresas que fabrican sus propios SO para su propio HW:
+IBM: AIX (UNIX®)
+HP: HP-UX (UNIX®)
+Apple: macOS (UNIX®)
+
+Hubo iniciativas para montar SO basados en esos estándares, pero sin pagar por el UNIX® (sellito):
+
+BSD (Berkeley Software Distribution). La cagaron... lo consiguieron: 386-BSD... Pero la cagadon... Anunciaron a BOMBO y PLATILLO que era un UNIX®... 
+Y AT&T deuncia! Ltigos durante más de una década... Cuando se resolvió, la arquitectura de microprocesadores 386 ya estaba muerta y enterrada, ese SO... inutil.
+
+La gente de GNU (Richard Stallman) intentaron hacer lo mismo:
+   GNU: GNU's Not UNIX
+   No valieron... lo intentaron... pero no valieron. Montaron TODO lo que hace falta para un SO... menos una piececita: el kernel.
+
+Frustrado, nuestro amigo Linus Torvalds, en 1991, decidió hacer un kernel de SO que fuera compatible con POSIX y SUS.
+Y como dedo culo! Se junto Linux - GNU -> GNU/Linux (que en su momento seguía los estándares de UNIX .. o eso creemos.. nunca se certificó como UNIX®). Hoy en día... ya ni se lo plantean.. tienen su linea de desarrollo independiente.
+
+# Linux?
+
+No es un Sistema operativo... es un Kernel de SO.
+Un SO está formado por un montón de programas... entre ellos, un subconjunto de programas es lo que llamamos el kernel. Todos los SO tienen un kernel. El kernel es el subconjunto de programas que se encargan de gestionar el hardware de la máquina, y de gestionar algunas funciones core del SO:
+- Gestión de procesos,
+- Planificación de sistemas de ficheros,
+- Gestión de RAM
+- Seguridad
+
+Habitualmente usamos la palabra LINUX para referirnos a un SO llamado GNU/Linux.
+Ese SO GNU/Linux se ofrece mediante distribuciones, que son conjuntos de programas que incluyen:
+- El kernel de Linux
+- Un montón de programas GNU (GNU es un proyecto que empezó Richard Stallman )
+- Una interfaz gráfica (que puede ser Gnome, KDE, etc)
+- Unas terminales: bash, zsh, fish, etc.
+- Un gestor de paquetes (apt, yum, dnf, etc)
+- Un montón de programas que hacen que el SO sea usable.
+
+
+# Windows?
+
+No es un SO.... es una familia de SOs.
+    Windows 3
+    Windows 95, 
+    Windows 98,
+    Windows NT,
+    Windows 2000,
+    Windows XP,
+    Windows Vista,
+    Windows 7,
+    Windows 8,
+    Windows 10,
+    Windows 11.
+    Windows server 2019
+
+Microsoft a lo largo de los años ha creado 2 kernels de so:
+- DOS
+  -  MS-DOS, Windows 3, Windows 95, Windows 98, Windows ME
+- NT (New Technology)
+  - Windows NT, Windows 2000, Windows XP, Windows Vista, Windows 7, Windows 8, Windows 10, Windows 11, Windows Server 2019
+
+
+# POSIX
+
+En POSIX de define por ejemplo:
+ - Estructura de directorios
+    /
+     bin/
+     tmp/
+     opt/
+     var/
+     home/
+     ...
+ - Permisos de ficheros
+    - rwx rwx rwx
+ - Comandos de terminal
+    - ls, cp, mv, rm, mkdir, rmdir, cat, head,... y así como 50
