@@ -1,5 +1,6 @@
 package com.curso
 
+import com.curso.DNIUtils.validarDNI
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{Row, SparkSession}
 
@@ -14,7 +15,6 @@ object SparkSQL {
                                 .appName("SparkSQL")
                                 .master("local[*]") // Usar todos los núcleos locales
                                 .getOrCreate()
-
     // Lo que viene ahora cambia por completo... ya no hay map/reduce... en su lugar hay funciones muy parecidas a las de SQL... o incluso directamente SQL.
     // Cuando trabajamos con spark-core, los datos los tenemos guardados en RDD
     // Cuando trabajamos con spark-sql, los datos los tenemos guardados en DataFrame o Dataset.
@@ -27,9 +27,9 @@ object SparkSQL {
     // Incluso puedo crear un dataframe yo mismo.. a manita. Que por ahora es lo que vamos a hacer!
 
     val datosPersonas = Array[Persona](
-      new Persona("Menchu",   30, "Madrid", "12345678A"),
+      new Persona("Menchu",   30, "Madrid", "23000T"),
       new Persona("Federico", 25, "Barcelona", "23456789B"),
-      new Persona("Marcial",  35, "Sevilla", "34567890C"),
+      new Persona("Marcial",  35, "Sevilla", "23.000.000-t"),
       new Persona("Fernanda", 28, "Sevilla", "45678901D"),
     ) //.asJava
     // Pregunta... eso (datosPersonas) es un objeto de SparkSQL? NO .. es un ARRAY de SCALA
@@ -96,12 +96,14 @@ object SparkSQL {
     // 2. Registrar la UDF en Spark SQL para que pueda ser usada en las queries SQL
     conexion.udf.register("doblar", miUDFCustom) // Registramos la UDF doblar en Spark SQL
 
+    //val miUDFValidarUnDNI = udf( (dni:String) => DNIUtils.validarDNI(dni) )
+    val miUDFValidarUnDNI = udf(DNIUtils.validarDNI _ ) // Eso me permite referenciar la función validarDNI que ya estaba creada... No estoy ejecutando esa función... solo la referencio.
+    conexion.udf.register("validarDNI", miUDFValidarUnDNI)
+
 
     conexion.sql("SELECT nombre, edad, doblar(edad) as doble from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
 
-
-
-//    conexion.sql("SELECT nombre, dni, validarDNI(dni) as dniValido from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
+    conexion.sql("SELECT nombre, dni, validarDNI(dni) as dniValido from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
     conexion.stop()
   }
 
