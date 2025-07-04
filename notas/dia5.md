@@ -426,3 +426,26 @@ En POSIX de define por ejemplo:
     - rwx rwx rwx
  - Comandos de terminal
     - ls, cp, mv, rm, mkdir, rmdir, cat, head,... y así como 50
+  
+
+---
+
+# mvn
+
+mvn clean install
+
+
+clean                   Borra la carpeta target
+compile                 Compila el código fuente src/main -> target/classes
+package                 Empaqueta el código compilado (target/classes) en un archivo .jar
+install?                Copiar el archivo .jar en el repositorio local de maven .m2/repository
+                        Eso lo que me permite es poder usar este .jar como dependencia en otros proyectos.
+
+
+---
+
+Spark es un proyecto gestionado por la fundación Apache Software Foundation (ASF).
+Es un proyecto opensource y gratuito.
+
+Hay una versión de pago!
+ DATABRICKS
