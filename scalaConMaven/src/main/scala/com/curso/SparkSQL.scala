@@ -1,5 +1,6 @@
 package com.curso
 
+import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{Row, SparkSession}
 
 import scala.jdk.CollectionConverters._
@@ -15,7 +16,6 @@ object SparkSQL {
                                 .getOrCreate()
 
     // Lo que viene ahora cambia por completo... ya no hay map/reduce... en su lugar hay funciones muy parecidas a las de SQL... o incluso directamente SQL.
-
     // Cuando trabajamos con spark-core, los datos los tenemos guardados en RDD
     // Cuando trabajamos con spark-sql, los datos los tenemos guardados en DataFrame o Dataset.
     // En el dataframe no vamops a tener operaciones map/reduce... lo que tenemos son operaciones similares a las de SQL.
@@ -82,12 +82,26 @@ object SparkSQL {
     //dataframePersonas.groupBy( $"ciudad" ).count().show() // Agrupamos por ciudad y contamos cuántas personas hay en cada ciudad
     conexion.sql("SELECT ciudad, COUNT(*) as total FROM personas GROUP BY ciudad").show() // Agrupamos por ciudad y contamos cuántas personas hay en cada ciudad usando SQL
 
-    conexion.sql("SELECT nombre, dni, validarDNI(dni) as dniValido from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
     // SQL viene coin una serie de funciones estandar: sum, avg, count, min, max, etc.
     // Viene en SQL la función validarDNI? NO
     // La vamos crear nosotros: UDF = User Defined Function
     // Esto será una opción.
     // La otra: transformar los datos de un dataframe a un RDD, y aplicar una función map sobre ese RDD.
+
+    // El trabajo de registrar un UDF es algo que va en 2 partes:
+    // 1. Definir la UDF. No es lo mismo que montar mi función. Nosotros ya tenemos una función validarDNI que valida un DNI español.
+    //    Pero no es un UDF. UDF es un concepto propio de Spark, La función validarDNI que hemos creado hay que envolverla en un UDF para que Spark pueda usarla.
+
+    val miUDFCustom=udf( (numero: Int) => numero * 2 ) // Hemos creado la función doblar
+    // 2. Registrar la UDF en Spark SQL para que pueda ser usada en las queries SQL
+    conexion.udf.register("doblar", miUDFCustom) // Registramos la UDF doblar en Spark SQL
+
+
+    conexion.sql("SELECT nombre, edad, doblar(edad) as doble from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
+
+
+
+//    conexion.sql("SELECT nombre, dni, validarDNI(dni) as dniValido from personas ").show() // Seleccionamos nombre y dni de las personas que tienen dni no nulo
     conexion.stop()
   }
 
